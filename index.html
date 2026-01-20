@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="gn">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Atreyu Servicios Digitales - Tembipuru Guasu</title>
+    <title>Atreyu Servicios Digitales - Consola</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +22,6 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // Tembipuru ta'anga rehegua
         const Icon = ({ name, ...props }) => {
             const LucideIcon = lucide[name];
             return LucideIcon ? <LucideIcon {...props} /> : null;
@@ -51,6 +50,7 @@
                     const res = await fetch(`${API_BASE}/data`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
+                    if (!res.ok) throw new Error();
                     const json = await res.json();
                     setData(json);
                 } catch (e) {
@@ -63,16 +63,28 @@
             const handleLogin = async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
-                const res = await fetch(`${API_BASE}/login`, { method: 'POST', body: formData });
-                if (res.ok) {
-                    const result = await res.json();
-                    localStorage.setItem('atreyu_token', result.token);
-                    setToken(result.token);
-                    setIsAuthenticated(true);
-                } else {
-                    alert("Ñe'ẽmimi ndoikói");
-                }
+                try {
+                    const res = await fetch(`${API_BASE}/login`, { method: 'POST', body: formData });
+                    if (res.ok) {
+                        const result = await res.json();
+                        localStorage.setItem('atreyu_token', result.token);
+                        setToken(result.token);
+                        setIsAuthenticated(true);
+                    } else { alert("Código incorrecto"); }
+                } catch (error) { alert("Error de conexión"); }
             };
+
+            const tasksNextWeek = useMemo(() => {
+                const today = new Date(); today.setHours(0,0,0,0);
+                const limit = new Date(); limit.setDate(today.getDate() + 7);
+                return (data.tasks || []).filter(t => {
+                    const d = new Date(t.date);
+                    return d >= today && d <= limit && t.status === 'pendiente';
+                }).sort((a, b) => {
+                    const prio = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
+                    return prio[a.priority] - prio[b.priority] || new Date(a.date) - new Date(b.date);
+                });
+            }, [data.tasks]);
 
             if (!isAuthenticated) {
                 return (
@@ -81,18 +93,15 @@
                             <div className="w-24 h-24 bg-slate-50 rounded-[36px] mx-auto mb-6 shadow-inner overflow-hidden flex items-center justify-center border border-slate-100">
                                 <img src="/static/ASD.png" alt="ASD" className="w-full h-full object-contain p-2" onerror="this.src='https://via.placeholder.com/150?text=ASD'"/>
                             </div>
-                            <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic text-blue-600 leading-none">ATREYU</h2>
-                            <p className="text-slate-400 font-bold text-[9px] uppercase tracking-[0.3em] mt-2 mb-10">Keikeha Mohendaha</p>
+                            <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic text-blue-600">ATREYU</h2>
+                            <p className="text-slate-400 font-bold text-[9px] uppercase mt-2 mb-10 italic">Consola de Administración</p>
                             
                             <form onSubmit={handleLogin} className="space-y-4 text-left">
-                                <div className="relative">
-                                    <Icon name="Key" className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                                    <input name="password" type="password" placeholder="Emoĩ ne ñe'ẽmimi" required 
-                                           class="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-[24px] font-bold text-sm focus:border-blue-500 outline-none transition-all" />
-                                </div>
-                                <button type="submit" class="w-full py-5 bg-slate-900 text-white font-black rounded-[24px] uppercase tracking-widest text-[10px] shadow-2xl hover:bg-blue-600 transition-all">Eike haguã</button>
+                                <input name="password" type="password" placeholder="Código Maestro" required 
+                                       class="w-full px-6 py-5 bg-slate-50 border border-slate-200 rounded-[24px] font-bold text-sm focus:border-blue-500 outline-none transition-all" />
+                                <button type="submit" class="w-full py-5 bg-slate-900 text-white font-black rounded-[24px] uppercase tracking-widest text-[10px] shadow-2xl hover:bg-blue-600 transition-all">Entrar</button>
                             </form>
-                            <p className="mt-12 text-[8px] font-bold text-slate-300 uppercase tracking-widest italic">© 2026 Atreyu Servicios Digitales</p>
+                            <p className="mt-12 text-[8px] font-bold text-slate-300 uppercase italic">© 2026 Atreyu Servicios Digitales</p>
                         </div>
                     </div>
                 );
@@ -100,61 +109,84 @@
 
             return (
                 <div className="min-h-screen flex text-slate-800">
-                    {/* SIDEBAR ASD */}
                     <aside className="w-72 bg-slate-900 text-white flex flex-col border-r border-slate-800 shrink-0">
                         <div className="p-10 flex flex-col items-center border-b border-slate-800/50">
-                            <div className="w-14 h-14 bg-white rounded-2xl mb-4 flex items-center justify-center p-2 shadow-lg border border-slate-700">
+                            <div className="w-14 h-14 bg-white rounded-2xl mb-4 flex items-center justify-center p-2 shadow-lg">
                                 <img src="/static/ASD.png" alt="Logo" class="w-full h-full object-contain" />
                             </div>
-                            <h1 className="text-lg font-black italic uppercase tracking-tighter leading-none">ATREYU</h1>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-[0.2em] mt-1">Editorial Hub</p>
+                            <h1 className="text-lg font-black italic uppercase tracking-tighter">ATREYU</h1>
+                            <p className="text-[8px] font-bold text-blue-400 uppercase mt-1 italic">Editorial Hub</p>
                         </div>
-                        <nav className="flex-1 px-6 py-8 space-y-1 overflow-y-auto">
-                            {[
-                                { id: 'dashboard', label: 'Ñemongu\'e', icon: 'LayoutDashboard' },
-                                { id: 'library', label: 'Aranduka Renda', icon: 'BookOpen' },
-                                { id: 'authors', label: 'Haihára', icon: 'User' },
-                                { id: 'series', label: 'Aranduka Aty', icon: 'Library' },
-                                { id: 'calendar', label: 'Arapapaha', icon: 'Calendar' },
-                                { id: 'analytics', label: 'Viru Puru', icon: 'BarChart3' }
-                            ].map(item => (
-                                <button key={item.id} onClick={() => setActiveTab(item.id)} 
-                                        class={`w-full flex items-center gap-4 px-6 py-4 rounded-[20px] transition-all font-black text-[10px] uppercase tracking-widest ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
-                                    <Icon name={item.icon} size={16} />
-                                    {item.label}
+                        <nav className="flex-1 px-6 py-8 space-y-1">
+                            {['dashboard', 'library', 'authors', 'series', 'calendar', 'analytics'].map(id => (
+                                <button key={id} onClick={() => setActiveTab(id)} 
+                                        class={`w-full flex items-center gap-4 px-6 py-4 rounded-[20px] transition-all font-black text-[10px] uppercase tracking-widest ${activeTab === id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                                    <Icon name={id === 'dashboard' ? 'LayoutDashboard' : id === 'library' ? 'BookOpen' : id === 'authors' ? 'User' : id === 'series' ? 'Library' : id === 'calendar' ? 'Calendar' : 'BarChart3'} size={18} />
+                                    {id}
                                 </button>
                             ))}
                         </nav>
-                        <div className="p-8 mt-auto flex flex-col gap-4">
-                            <div className="flex items-center justify-center gap-2 py-2 opacity-40">
-                                <img src="/static/ASD.png" alt="ASD" class="h-3 w-auto grayscale brightness-200" />
-                                <p class="text-[8px] font-black text-slate-500 uppercase tracking-tighter italic">© 2026 Atreyu S.D.</p>
-                            </div>
+                        <div className="p-8 mt-auto opacity-40 text-center border-t border-slate-800">
+                            <p class="text-[8px] font-black text-slate-500 uppercase italic whitespace-nowrap">© 2026 Atreyu Servicios Digitales</p>
                         </div>
                     </aside>
 
-                    {/* MAIN CONTENT */}
                     <main className="flex-1 flex flex-col overflow-hidden bg-[#f8fafc]">
                         <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-12 shrink-0">
-                            <div className="flex items-center gap-4">
-                                <h2 className="text-lg font-black uppercase italic tracking-tighter">{activeTab}</h2>
-                                <div className="w-[1px] h-4 bg-slate-200"></div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Atreyu ASD</p>
+                            <h2 className="text-lg font-black uppercase italic tracking-tighter">{activeTab}</h2>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span className="text-[9px] font-black text-emerald-600 uppercase">En línea</span>
                             </div>
                         </header>
 
                         <div className="flex-1 overflow-y-auto p-12">
-                            <div className="animate-fade-in max-w-7xl mx-auto w-full">
-                                {loading ? (
-                                    <div className="text-center py-20 text-slate-300 font-black uppercase tracking-widest text-xs">Rogueru hína marandukuéra...</div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full min-h-[400px] border-4 border-dashed border-slate-200 rounded-[64px] text-slate-200">
-                                        <Icon name="Database" size={80} className="mb-6 opacity-10" />
-                                        <p className="font-black text-2xl uppercase tracking-widest opacity-20 italic">Tenda Ñemongu'e Atreyu</p>
-                                        <p className="text-[10px] font-bold mt-2 tracking-widest uppercase opacity-20">Ejeporeka haguã eipyru pe menú akatúa gotyogua</p>
+                            {activeTab === 'dashboard' && (
+                                <div className="space-y-10 animate-fade-in">
+                                    <div className="grid grid-cols-4 gap-8">
+                                        <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm transition-transform hover:scale-[1.02]">
+                                            <Icon name="DollarSign" className="text-emerald-500 mb-4" size={32} />
+                                            <p className="text-3xl font-black text-slate-900 tracking-tighter">{data.metrics?.reduce((acc, m) => acc + m.revenue, 0).toLocaleString()}€</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Facturación Total</p>
+                                        </div>
+                                        <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm transition-transform hover:scale-[1.02]">
+                                            <Icon name="AlertCircle" className="text-rose-500 mb-4" size={32} />
+                                            <p className="text-3xl font-black text-slate-900 tracking-tighter">{tasksNextWeek.length}</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Alertas 7 Días</p>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
+                                    
+                                    <div className="bg-slate-900 p-10 rounded-[48px] text-white shadow-2xl relative overflow-hidden">
+                                        <h3 className="text-xl font-black uppercase tracking-widest italic text-blue-400 mb-10 border-b border-slate-800 pb-6 flex items-center gap-3">
+                                            <Icon name="CalendarDays" /> Agenda Operativa Atreyu
+                                        </h3>
+                                        <div className="space-y-4">
+                                            {tasksNextWeek.length > 0 ? tasksNextWeek.map(t => (
+                                                <div key={t.id} className="flex items-center justify-between p-6 bg-white/5 rounded-[32px] border border-white/5 group hover:border-blue-500/30 transition-all">
+                                                    <div className="flex items-center gap-6">
+                                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black shadow-lg ${t.priority === 'Alta' ? 'bg-rose-600' : 'bg-blue-600'}`}>
+                                                            <Icon name="ShieldAlert" size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-lg tracking-tighter uppercase leading-none group-hover:text-blue-400 transition-colors">{t.title}</p>
+                                                            <p className="text-[10px] font-bold text-slate-500 mt-2 uppercase italic tracking-widest">{t.date} • PRIORIDAD {t.priority.toUpperCase()}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button className="text-[10px] font-black bg-blue-600/10 hover:bg-emerald-600 px-6 py-3 rounded-xl text-blue-400 hover:text-white transition-all border border-blue-500/20 uppercase tracking-widest">Hecho</button>
+                                                </div>
+                                            )) : <p className="text-center py-20 opacity-20 italic">Todo al día en Atreyu Servicios Digitales.</p>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {activeTab !== 'dashboard' && (
+                                <div className="flex flex-col items-center justify-center h-full min-h-[400px] border-4 border-dashed border-slate-200 rounded-[64px] text-slate-200 opacity-40">
+                                    <Icon name="Database" size={80} className="mb-6" />
+                                    <p className="font-black text-2xl uppercase tracking-widest italic">Módulo {activeTab} Listo</p>
+                                    <p className="text-[10px] font-bold mt-2 tracking-widest uppercase">Sincronizado con SQLite Atreyu</p>
+                                </div>
+                            )}
                         </div>
                     </main>
                 </div>
