@@ -4,17 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Atreyu Servicios Digitales - Consola</title>
-    
-    <!-- FAVICON ASD -->
     <link rel="icon" type="image/png" href="/static/ASD.png">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.02em; }</style>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.02em; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
 <body class="bg-[#f8fafc]">
     <div id="root"></div>
@@ -23,15 +24,18 @@
         const { useState, useEffect, useMemo } = React;
 
         const Icon = ({ name, ...props }) => {
-            const LucideIcon = lucide[name];
-            return LucideIcon ? <LucideIcon {...props} /> : null;
+            const LucideIcon = lucide[name.charAt(0).toUpperCase() + name.slice(1)];
+            if (!LucideIcon && lucide[name]) return React.createElement(lucide[name], props);
+            return LucideIcon ? React.createElement(LucideIcon, props) : null;
         };
 
         const App = () => {
             const [isAuth, setIsAuth] = useState(!!localStorage.getItem('atreyu_token'));
             const [activeTab, setActiveTab] = useState('dashboard');
-            const [data, setData] = useState({ authors: [], books: [], tasks: [], metrics: [] });
             const [loading, setLoading] = useState(false);
+            const [data, setData] = useState({ 
+                authors: [], books: [], tasks: [], metrics: [], imprints: [], series: [] 
+            });
 
             const refreshData = async () => {
                 if (!isAuth) return;
@@ -40,31 +44,36 @@
                     const res = await fetch('/api/data', {
                         headers: { 'Authorization': `Bearer ${localStorage.getItem('atreyu_token')}` }
                     });
+                    if (res.status === 401) throw new Error();
                     const json = await res.json();
-                    setData(json);
-                } catch (e) { setIsAuth(false); }
-                finally { setLoading(false); }
+                    setData(prev => ({ ...prev, ...json }));
+                } catch (e) {
+                    setIsAuth(false);
+                    localStorage.removeItem('atreyu_token');
+                } finally {
+                    setLoading(false);
+                }
             };
 
             useEffect(() => { refreshData(); }, [isAuth]);
 
             if (!isAuth) return (
-                <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-                    <div className="bg-white w-full max-w-md rounded-[56px] p-12 shadow-2xl text-center">
-                        <img src="/static/ASD.png" className="w-20 mx-auto mb-6" onerror="this.src='https://via.placeholder.com/80?text=ASD'"/>
-                        <h2 className="text-2xl font-black text-slate-800 italic uppercase mb-8">ATREYU ASD</h2>
-                        <form onSubmit={(e) => {
+                <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6">
+                    <div className="bg-white w-full max-w-md rounded-[56px] p-12 shadow-2xl animate-fade-in text-center">
+                        <img src="/static/ASD.png" className="w-20 mx-auto mb-6" onerror="this.src='https://via.placeholder.com/100?text=ASD'"/>
+                        <h2 className="text-3xl font-black text-slate-800 italic uppercase mb-8">ATREYU ASD</h2>
+                        <form onSubmit={async (e) => {
                             e.preventDefault();
                             const fd = new FormData(e.target);
-                            fetch('/api/login', { method: 'POST', body: fd })
-                                .then(r => r.json())
-                                .then(res => {
-                                    if(res.token) { localStorage.setItem('atreyu_token', res.token); setIsAuth(true); }
-                                    else { alert("Código incorrecto"); }
-                                });
-                        }} className="space-y-4 text-left">
-                            <input name="password" type="password" placeholder="Código Maestro" className="w-full p-5 bg-slate-50 border rounded-2xl font-bold outline-none" />
-                            <button className="w-full py-5 bg-slate-900 text-white font-black rounded-2xl uppercase tracking-widest text-[10px]">Acceder</button>
+                            const res = await fetch('/api/login', { method: 'POST', body: fd });
+                            const result = await res.json();
+                            if (result.token) {
+                                localStorage.setItem('atreyu_token', result.token);
+                                setIsAuth(true);
+                            } else { alert("Código incorrecto"); }
+                        }} className="space-y-4">
+                            <input name="password" type="password" placeholder="Código Maestro" className="w-full p-5 bg-slate-50 border rounded-2xl font-bold outline-none focus:border-blue-500" />
+                            <button className="w-full py-5 bg-slate-900 text-white font-black rounded-2xl uppercase tracking-widest text-[10px]">Entrar</button>
                         </form>
                     </div>
                 </div>
@@ -72,41 +81,82 @@
 
             return (
                 <div className="min-h-screen flex">
-                    <aside className="w-64 bg-slate-900 text-white flex flex-col shrink-0">
+                    <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0">
                         <div className="p-10 border-b border-white/5 text-center">
-                            <img src="/static/ASD.png" className="w-10 mx-auto mb-4" />
+                            <img src="/static/ASD.png" className="w-12 mx-auto mb-4" />
                             <h1 className="text-xl font-black italic">ATREYU</h1>
+                            <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Servicios Digitales</p>
                         </div>
                         <nav className="flex-1 p-6 space-y-2">
-                            {['dashboard', 'library', 'analytics'].map(id => (
-                                <button key={id} onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-[10px] uppercase transition-all ${activeTab === id ? 'bg-blue-600 shadow-lg' : 'text-slate-500'}`}>
-                                    <Icon name={id === 'dashboard' ? 'LayoutDashboard' : id === 'library' ? 'BookOpen' : 'BarChart3'} size={18} />
-                                    {id}
+                            {[
+                                { id: 'dashboard', label: 'Tablero', icon: 'LayoutDashboard' },
+                                { id: 'library', label: 'Biblioteca', icon: 'BookOpen' },
+                                { id: 'authors', label: 'Autores', icon: 'User' },
+                                { id: 'analytics', label: 'Finanzas', icon: 'BarChart3' }
+                            ].map(item => (
+                                <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-[10px] uppercase transition-all ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                                    <Icon name={item.icon} size={18} />
+                                    {item.label}
                                 </button>
                             ))}
                         </nav>
                         <div className="p-8">
-                            <button onClick={() => { localStorage.clear(); setIsAuth(false); }} className="w-full py-3 bg-red-500/10 text-red-500 rounded-xl font-black text-[9px] uppercase">Salir</button>
+                            <button onClick={() => { localStorage.clear(); setIsAuth(false); }} className="w-full py-3 bg-red-500/10 text-red-500 rounded-xl font-black text-[9px] uppercase">Cerrar Sesión</button>
                         </div>
                     </aside>
-                    <main className="flex-1 p-12 overflow-y-auto">
-                        <h2 className="text-2xl font-black uppercase italic mb-8">{activeTab}</h2>
-                        <div className="grid grid-cols-3 gap-8">
-                            <div className="bg-white p-8 rounded-[32px] border shadow-sm">
-                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Ingresos</p>
-                                <p className="text-3xl font-black">{(data.metrics || []).reduce((a,b)=>a+b.revenue,0)}€</p>
-                            </div>
-                            <div className="bg-white p-8 rounded-[32px] border shadow-sm">
-                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Obras</p>
-                                <p className="text-3xl font-black">{data.books?.length || 0}</p>
-                            </div>
+
+                    <main className="flex-1 flex flex-col overflow-hidden">
+                        <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-12">
+                            <h2 className="text-lg font-black uppercase italic tracking-tighter">{activeTab}</h2>
+                            <div className="bg-emerald-500 w-2 h-2 rounded-full animate-pulse"></div>
+                        </header>
+
+                        <div className="flex-1 overflow-y-auto p-12">
+                            {loading ? (
+                                <div className="flex justify-center py-20 text-blue-500">Cargando datos...</div>
+                            ) : (
+                                <div className="space-y-10 animate-fade-in">
+                                    <div className="grid grid-cols-3 gap-8">
+                                        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+                                            <Icon name="DollarSign" className="text-emerald-500 mb-4" size={24} />
+                                            <p className="text-3xl font-black text-slate-800">{(data.metrics || []).reduce((a,b)=>a+(b.revenue||0),0).toLocaleString()}€</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase mt-1">Facturación Total</p>
+                                        </div>
+                                        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+                                            <Icon name="Book" className="text-blue-500 mb-4" size={24} />
+                                            <p className="text-3xl font-black">{data.books?.length || 0}</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase mt-1">Obras Registradas</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-900 p-10 rounded-[48px] text-white">
+                                        <h3 className="text-lg font-black uppercase tracking-widest italic text-blue-400 mb-8 border-b border-white/5 pb-4">Actividad Reciente</h3>
+                                        <div className="space-y-4">
+                                            {(data.tasks || []).length > 0 ? data.tasks.map(t => (
+                                                <div key={t.id} className="flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                                                            <Icon name="Clock" size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black uppercase">{t.title}</p>
+                                                            <p className="text-[10px] opacity-50">{t.date}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )) : <p className="opacity-20 italic text-center py-10 uppercase font-black text-xs">No hay tareas pendientes</p>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </main>
                 </div>
             );
         };
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
     </script>
 </body>
 </html>
