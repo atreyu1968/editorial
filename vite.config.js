@@ -6,6 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Solución al error de "Blocked request":
+    allowedHosts: [
+      'asd.atreyu.net',
+      'localhost',
+      '127.0.0.1'
+    ],
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
