@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Atreyu Servicios Digitales - Consola Pro</title>
+    <title>Atreyu Servicios Digitales - Consola Editorial</title>
     <link rel="icon" type="image/png" href="/static/ASD.png">
     
+    <!-- Frameworks vía CDN para máxima estabilidad sin compilación -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -17,181 +18,195 @@
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.02em; }
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-[#f8fafc]">
+<body class="bg-[#f8fafc] text-slate-900 overflow-hidden">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // Componente de Icono corregido para evitar el error .toSvg
+        // Componente de Icono Robusto (Solución definitiva para Lucide en Navegador)
         const Icon = ({ name, size = 18, className = "" }) => {
             const iconRef = useRef(null);
-
             useEffect(() => {
                 if (window.lucide && iconRef.current) {
-                    // Limpiar contenido previo
                     iconRef.current.innerHTML = '';
-                    // Crear elemento i con el atributo de lucide
                     const i = document.createElement('i');
                     i.setAttribute('data-lucide', name);
                     i.style.width = `${size}px`;
                     i.style.height = `${size}px`;
                     if (className) i.className = className;
                     iconRef.current.appendChild(i);
-                    
-                    // Ejecutar la creación del icono de Lucide
-                    window.lucide.createIcons({
-                        attrs: { strokeWidth: 2 }
-                    });
+                    window.lucide.createIcons();
                 }
             }, [name, size, className]);
-
-            return (
-                <span 
-                    ref={iconRef} 
-                    className={`inline-flex items-center justify-center ${className}`} 
-                    style={{ width: size, height: size }}
-                ></span>
-            );
+            return <span ref={iconRef} className={`inline-flex items-center justify-center ${className}`} style={{ width: size, height: size }}></span>;
         };
 
         const App = () => {
             const [isAuth, setIsAuth] = useState(!!localStorage.getItem('atreyu_token'));
-            const [token, setToken] = useState(localStorage.getItem('atreyu_token'));
             const [activeTab, setActiveTab] = useState('dashboard');
-            const [data, setData] = useState({ authors: [], books: [], tasks: [], metrics: [] });
+            const [data, setData] = useState({ imprints: [], authors: [], series: [], books: [], tasks: [], metrics: [] });
             const [loading, setLoading] = useState(false);
 
             const refreshData = async () => {
-                if (!token) return;
+                if (!isAuth) return;
                 setLoading(true);
                 try {
                     const res = await fetch('/api/data', {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('atreyu_token')}` }
                     });
                     if (res.status === 401) throw new Error();
                     const json = await res.json();
-                    setData({
-                        authors: json.authors || [],
-                        books: json.books || [],
-                        tasks: json.tasks || [],
-                        metrics: json.metrics || []
-                    });
-                } catch (e) {
+                    setData(json);
+                } catch (e) { 
+                    setIsAuth(false); 
                     localStorage.removeItem('atreyu_token');
-                    setIsAuth(false);
-                } finally {
-                    setLoading(false);
-                }
+                } finally { setLoading(false); }
             };
 
-            useEffect(() => {
-                if (isAuth) refreshData();
-            }, [isAuth]);
+            const deleteItem = async (table, id) => {
+                if(!confirm("¿Eliminar registro?")) return;
+                await fetch(`/api/delete/${table}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('atreyu_token')}` }
+                });
+                refreshData();
+            };
+
+            useEffect(() => { refreshData(); }, [isAuth]);
+
+            // ROI y Estadísticas
+            const stats = useMemo(() => {
+                const revenue = data.metrics.reduce((acc, m) => acc + (m.revenue || 0), 0);
+                const ads = data.metrics.reduce((acc, m) => acc + (m.ads_spend || 0), 0);
+                const prod = data.books.reduce((acc, b) => acc + (b.prod_cost_cover || 0) + (b.prod_cost_trans || 0) + (b.prod_cost_edit || 0), 0);
+                return { revenue, totalCosts: ads + prod, roi: revenue - (ads + prod) };
+            }, [data]);
 
             if (!isAuth) return (
-                <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 text-center">
+                <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center">
                     <div className="bg-white w-full max-w-md rounded-[56px] p-12 shadow-2xl animate-fade-in">
-                        <img src="/static/ASD.png" className="w-20 mx-auto mb-6" onError={(e) => e.target.src='https://via.placeholder.com/80'}/>
-                        <h2 className="text-3xl font-black text-slate-800 italic uppercase mb-8 text-blue-600">ATREYU ASD</h2>
+                        <img src="/static/ASD.png" className="w-24 mx-auto mb-8" onError={(e) => e.target.src='https://via.placeholder.com/100?text=ASD'}/>
+                        <h2 className="text-3xl font-black text-slate-800 italic uppercase mb-8 text-blue-600 tracking-tighter leading-none">ATREYU ASD</h2>
                         <form onSubmit={async (e) => {
                             e.preventDefault();
                             const fd = new FormData(e.target);
-                            try {
-                                const res = await fetch('/api/login', { method: 'POST', body: fd });
-                                const result = await res.json();
-                                if (result.token) {
-                                    localStorage.setItem('atreyu_token', result.token);
-                                    setToken(result.token);
-                                    setIsAuth(true);
-                                } else { alert("Código incorrecto"); }
-                            } catch (err) { alert("Error de servidor"); }
+                            const res = await fetch('/api/login', { method: 'POST', body: fd });
+                            const result = await res.json();
+                            if (result.token) { localStorage.setItem('atreyu_token', result.token); setIsAuth(true); }
+                            else { alert("Acceso Denegado"); }
                         }} className="space-y-4">
-                            <input name="password" type="password" placeholder="Código Maestro" required 
-                                   className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500" />
-                            <button className="w-full py-5 bg-slate-900 text-white font-black rounded-2xl uppercase tracking-widest text-[10px]">Entrar</button>
+                            <input name="password" type="password" placeholder="Código Maestro" className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl font-bold outline-none focus:border-blue-500" required />
+                            <button className="w-full py-6 bg-slate-900 text-white font-black rounded-3xl uppercase tracking-widest text-[10px] shadow-xl hover:bg-blue-600 transition-all">Desbloquear</button>
                         </form>
                     </div>
                 </div>
             );
 
             return (
-                <div className="min-h-screen flex bg-[#f8fafc]">
-                    <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0">
+                <div className="h-screen flex bg-[#f8fafc]">
+                    {/* Sidebar */}
+                    <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0 border-r border-slate-800">
                         <div className="p-10 text-center border-b border-white/5">
-                            <img src="/static/ASD.png" className="w-12 mx-auto mb-4" />
-                            <h1 className="text-xl font-black italic uppercase">ATREYU</h1>
+                            <img src="/static/ASD.png" className="w-14 mx-auto mb-4" />
+                            <h1 className="text-xl font-black italic uppercase tracking-tighter">ATREYU</h1>
+                            <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mt-1">Editorial Hub</p>
                         </div>
-                        <nav className="flex-1 p-6 space-y-2">
+                        <nav className="flex-1 p-6 space-y-2 overflow-y-auto custom-scrollbar">
                             {[
                                 { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
                                 { id: 'library', label: 'Biblioteca', icon: 'book-open' },
-                                { id: 'authors', label: 'Autores', icon: 'user' },
+                                { id: 'authors', label: 'Autores', icon: 'users' },
+                                { id: 'series', label: 'Series', icon: 'layers' },
                                 { id: 'analytics', label: 'Finanzas', icon: 'bar-chart-3' }
                             ].map(item => (
-                                <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
-                                    <Icon name={item.icon} size={18} />
-                                    {item.label}
+                                <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-[10px] uppercase transition-all ${activeTab === item.id ? 'bg-blue-600 shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                                    <Icon name={item.icon} /> {item.label}
                                 </button>
                             ))}
                         </nav>
-                        <div className="p-8">
-                            <button onClick={() => { localStorage.clear(); setIsAuth(false); }} className="w-full py-3 bg-red-500/10 text-red-500 rounded-xl font-black text-[9px] uppercase tracking-widest border border-red-500/20">Salir</button>
+                        <div className="p-8 mt-auto border-t border-white/5">
+                            <button onClick={() => { localStorage.clear(); setIsAuth(false); }} className="w-full py-4 bg-red-500/10 text-red-500 rounded-2xl font-black text-[9px] uppercase tracking-widest border border-red-500/20">Salir</button>
                         </div>
                     </aside>
 
-                    <main className="flex-1 flex flex-col overflow-hidden">
+                    <main className="flex-1 flex flex-col min-w-0">
                         <header className="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-12 shrink-0">
                             <h2 className="text-xl font-black uppercase italic tracking-tighter">{activeTab}</h2>
-                            <div className="flex items-center gap-2">
-                                <div className="bg-emerald-500 w-2 h-2 rounded-full animate-pulse"></div>
-                                <span className="text-[10px] font-black uppercase text-slate-400">Sistema Activo</span>
+                            <div className="flex gap-4">
+                                <button onClick={refreshData} className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-blue-500 transition-colors">
+                                    <Icon name="refresh-cw" className={loading ? "animate-spin" : ""} />
+                                </button>
+                                <button className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-blue-600 transition-all">
+                                    <Icon name="plus" size={14} /> Nuevo
+                                </button>
                             </div>
                         </header>
 
-                        <div className="flex-1 overflow-y-auto p-12">
-                            {loading ? (
-                                <div className="flex justify-center py-20 text-blue-500 font-black uppercase text-xs tracking-widest">Sincronizando...</div>
-                            ) : (
-                                <div className="animate-fade-in space-y-10 max-w-7xl mx-auto w-full">
-                                    <div className="grid grid-cols-3 gap-8">
-                                        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
-                                            <Icon name="dollar-sign" className="text-emerald-500 mb-4" size={32} />
-                                            <p className="text-3xl font-black text-slate-800">{(data.metrics || []).reduce((a,b)=>a+(b.revenue||0),0).toLocaleString()}€</p>
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Ingresos Totales</p>
+                        <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+                            <div className="animate-fade-in max-w-7xl mx-auto space-y-12 w-full">
+                                {activeTab === 'dashboard' && (
+                                    <>
+                                        <div className="grid grid-cols-3 gap-8">
+                                            <div className="bg-white p-8 rounded-[44px] border shadow-sm">
+                                                <Icon name="dollar-sign" className="text-emerald-500 mb-4" size={32} />
+                                                <p className="text-3xl font-black">{stats.revenue.toLocaleString()}€</p>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Facturación Total</p>
+                                            </div>
+                                            <div className="bg-white p-8 rounded-[44px] border shadow-sm">
+                                                <Icon name="trending-up" className="text-blue-500 mb-4" size={32} />
+                                                <p className={`text-3xl font-black ${stats.roi >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{stats.roi.toLocaleString()}€</p>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">ROI Proyectado</p>
+                                            </div>
+                                            <div className="bg-white p-8 rounded-[44px] border shadow-sm">
+                                                <Icon name="alert-circle" className="text-rose-500 mb-4" size={32} />
+                                                <p className="text-3xl font-black">{data.tasks.length}</p>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Pendientes</p>
+                                            </div>
                                         </div>
-                                        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
-                                            <Icon name="book-open" className="text-blue-500 mb-4" size={32} />
-                                            <p className="text-3xl font-black">{data.books?.length || 0}</p>
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Libros Registrados</p>
-                                        </div>
-                                    </div>
 
-                                    <div className="bg-slate-900 p-10 rounded-[56px] text-white shadow-2xl">
-                                        <h3 className="text-lg font-black uppercase tracking-widest italic text-blue-400 mb-8 border-b border-white/5 pb-4 flex items-center gap-3">
-                                            <Icon name="calendar" size={20} /> Agenda Atreyu
-                                        </h3>
-                                        <div className="space-y-4">
-                                            {(data.tasks || []).length > 0 ? data.tasks.map(t => (
-                                                <div key={t.id} className="flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                                                            <Icon name="clock" size={16} />
+                                        <div className="bg-slate-900 p-10 rounded-[56px] text-white shadow-2xl relative overflow-hidden">
+                                            <h3 className="text-xl font-black uppercase tracking-widest italic text-blue-400 mb-8 flex items-center gap-3">
+                                                <Icon name="calendar-days" /> Agenda Operativa Atreyu
+                                            </h3>
+                                            <div className="space-y-4">
+                                                {data.tasks.length > 0 ? data.tasks.map(t => (
+                                                    <div key={t.id} className="flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5 hover:border-blue-500/30 transition-all">
+                                                        <div className="flex items-center gap-6">
+                                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${t.priority === 'Alta' ? 'bg-rose-600' : 'bg-blue-600'}`}>
+                                                                <Icon name="clock" size={20} />
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-black text-lg uppercase tracking-tighter leading-none">{t.title}</p>
+                                                                <p className="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-widest italic">{t.date} • {t.priority}</p>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <p className="font-black uppercase">{t.title}</p>
-                                                            <p className="text-[10px] opacity-50">{t.date}</p>
-                                                        </div>
+                                                        <button onClick={() => deleteItem('tasks', t.id)} className="text-[9px] font-black bg-white/5 px-4 py-2 rounded-xl text-slate-400 border border-white/10 uppercase tracking-widest hover:text-rose-500 transition-colors">Eliminar</button>
                                                     </div>
-                                                </div>
-                                            )) : <p className="opacity-20 italic text-center py-10 uppercase font-black text-xs">Sin tareas hoy</p>}
+                                                )) : <p className="opacity-20 italic text-center py-10 uppercase font-black text-xs">No hay tareas</p>}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {activeTab !== 'dashboard' && (
+                                    <div className="bg-white rounded-[44px] border border-slate-100 shadow-sm overflow-hidden min-h-[400px]">
+                                        <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                                            <h3 className="font-black uppercase tracking-tighter italic">Listado de {activeTab}</h3>
+                                        </div>
+                                        <div className="p-12 text-center text-slate-300 italic">
+                                            <Icon name="database" size={60} className="mb-4 opacity-20" />
+                                            <p className="font-black text-xs uppercase tracking-[0.2em]">Módulo {activeTab} sincronizado con Atreyu</p>
+                                            <button className="mt-8 bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest">Crear Nuevo Registro</button>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </main>
                 </div>
